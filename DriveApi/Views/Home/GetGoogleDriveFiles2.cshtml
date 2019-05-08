@@ -1,0 +1,190 @@
+﻿@model IEnumerable<DriveApi.Models.GoogleDriveFile>
+@{
+    ViewBag.Title = "Google Drive API v3 - ASP.NET MVC 5 [Everyday Be Coding]";
+}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<div id="Render_GetGoogleDriveFilesView">
+    <h2 class="imagetable">Google Drive API v3 - [Root Directory]</h2>
+
+    <center>
+        <div style="width:100%;">
+            <table class="imagetable">
+                <tr>
+                    <td>
+                        @using (Html.BeginForm("CreateFolder", "Home", FormMethod.Post))
+                        {
+                            <p>
+                                Folder Name :<input type="text" name="FolderName" id="txtFolderName" style="align-content:center" />
+                                <input type="submit" class="CreateFolder" value="Create Folder" style="align-content:center" />
+                            </p>
+                        }
+                    </td>
+                    <td>
+                        @using (Html.BeginForm("UploadFile", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
+                        {
+                            <label>File Upload in Root :</label>
+                            <input type="file" name="file" id="file" style="width:176px;" />
+                                <input type="submit" value="Upload" />
+                        }
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <br />
+
+        <table class="imagetable">
+            <tr id="header">
+                <th>
+                    @Html.DisplayNameFor(model => model.Name)
+                </th>
+                <th>
+                    Type
+                </th>
+
+                <th>
+                    Created Time
+                </th>
+
+                <th>
+                    Move To
+                </th>
+
+                <th>
+                    Copy To
+                </th>
+
+            </tr>
+
+            @if (Model.Count() > 0)
+            {
+                foreach (var item in Model)
+                {
+                    if (item.Parents != null)
+                    {
+                        if (item.Parents[0] == "0AAN1soYNhZZ9Uk9PVA")
+                        {
+                            <tr>
+                                @{
+                                    string FileSize = string.Empty;
+                                    string Type = string.Empty;
+                                    if (@item.Size != null)
+                                    {
+                                        long? KiloByte = @item.Size;
+                                        FileSize = KiloByte + " bytes";
+                                    }
+                                    else
+                                    {
+                                        FileSize = "0 bytes";
+                                    }
+                                }
+                                <td>
+                                   @if (@item.MimeType == "application/vnd.google-apps.folder")
+                                   {
+                                        <a href="@Url.Action("GetContainsInFolder", "Home", new { folderId = item.Id })">@item.Name</a>
+                                    }
+                                    else
+                                    { @item.Name }
+                                </td>
+
+                                <td>
+                                    @{
+                                        if (@item.MimeType == "application/vnd.google-apps.folder") { Type = "Folder"; }
+                                        else { Type = "File"; }
+                                    }
+                                    @Type
+                                </td>
+                                <td>
+                                    @string.Format("{0: MM/dd/yyyy}", Convert.ToDateTime(Html.DisplayFor(modelItem => item.CreatedTime).ToString()))
+                                </td>
+                                <td>
+                                    <select id="drpGetDriveFoldersForMove" class="FolderListForMove" data-key="@item.Id">
+                                        <option>Select</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select id="drpGetDriveFoldersForCopy" class="FolderListForCopy" data-key="@item.Id">
+                                        <option>Select</option>
+                                    </select>
+                                </td>
+                            </tr>
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr> <td colspan="6">No Records found</td> </tr>
+                                        }
+        </table>
+    </center>
+</div>
+
+<script>
+    $(document).ready(function () {
+        $.getJSON("/Home/FolderLists", function (data) {
+            $.each(data, function (i, data) {
+                $('<option>',
+                   {
+                       value: data.Id,
+                       text: data.Name
+                   }).html(data.Name).appendTo(".FolderListForMove");
+
+                $('<option>',
+                  {
+                      value: data.Id,
+                      text: data.Name
+                  }).html(data.Name).appendTo(".FolderListForCopy");
+            });
+        })
+    });
+
+    $(document).on('change', '.FolderListForMove', function () {
+        var FolderId = $(this).val().trim();
+        var FileId = $(this).attr("data-key");
+
+        MoveFiles(FileId, FolderId);
+    });
+
+    $(document).on('change', '.FolderListForCopy', function () {
+        var FolderId = $(this).val().trim();
+        var FileId = $(this).attr("data-key");
+
+        CopyFiles(FileId, FolderId);
+    });
+
+    function MoveFiles(FileId, FolderId) {
+        $.ajax({
+            url: '/Home/MoveFiles',
+            type: "GET",
+            contentType: "application/json",
+            data: { fileId: FileId, folderId: FolderId },
+            success: function (result) {
+                ReloadView();
+            }
+        });
+    }
+
+    function CopyFiles(FileId, FolderId) {
+        $.ajax({
+            url: '/Home/CopyFiles',
+            type: "GET",
+            contentType: "application/json",
+            data: { fileId: FileId, folderId: FolderId },
+            success: function (result) {
+                ReloadView();
+            }
+        });
+    }
+
+    function ReloadView() {
+        $("#Render_GetGoogleDriveFilesView").html("<center><img src='../../Images/ajax-loading.gif' alt='Loading...' /></center>");
+        $.ajax({
+            url: "/Home/Render_GetGoogleDriveFilesView",
+            type: "POST",
+            contentType: "application/json",
+            success: function (data) {
+                $("#Render_GetGoogleDriveFilesView").html(data.Html);
+            }
+        });
+    }
+</script>
